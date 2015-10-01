@@ -63,7 +63,6 @@ using namespace std;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Innentol modosithatod...
 
-
 //--------------------------------------------------------
 // Spektrum illetve szin
 //--------------------------------------------------------
@@ -491,6 +490,7 @@ const int screenHeight = 600;
 const float PI_MAT = 3.14159;
 
 Color image[screenWidth * screenHeight];	// egy alkalmazÃ¡s ablaknyi kÃ©p
+Color image2[screenWidth * screenHeight];
 int piecesOfControllPoints = 0;
 Array<ControllPointWithTime, 10> pointsWithTime;
 class Circle {
@@ -541,29 +541,25 @@ public:
 bool space = false;
 
 class Animation {
-	Vector viewPortPosition;
+
+private:
 	long animationTime;
+	long accTime;
 	Vector myDir;
-
-	bool moveLeft;
-	bool moveRight;
-
+	float velo;
 public:
+	Vector viewPortPosition;
 
 	Animation() {
-		moveLeft = true;
-		moveRight = false;
+
 		animationTime = 0;
 		viewPortPosition.x = 250;
 		viewPortPosition.y = 250;
-		myDir = Vector();
-
-	}
-
-	void randomBeginingDir() {
-		long time = glutGet(GLUT_ELAPSED_TIME);
 		myDir = Vector(2, 3);
 		myDir.Normalize();
+		accTime = 0;
+		velo = 5;
+
 	}
 
 	Vector getNormalOfTheWall() {
@@ -591,14 +587,20 @@ public:
 
 	void animation() {
 		long time = glutGet(GLUT_ELAPSED_TIME);
-		if (time - animationTime > 5 && space) {
+
+		if (time - accTime > 500 && space && velo <= 14) {
+			velo += 0.25;
+			accTime = glutGet(GLUT_ELAPSED_TIME);
+		}
+		long ellapsedTime = time - animationTime;
+		if (ellapsedTime > 50 && space) {
 
 			animationTime = glutGet(GLUT_ELAPSED_TIME);
 
 			myDir = reflect();
 
-			viewPortPosition.x = myDir.x * 2 + viewPortPosition.x;
-			viewPortPosition.y = myDir.y * 2 + viewPortPosition.y;
+			viewPortPosition.x = myDir.x * velo + viewPortPosition.x;
+			viewPortPosition.y = myDir.y * velo + viewPortPosition.y;
 			glLoadIdentity();
 			gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
 					viewPortPosition.y, viewPortPosition.y + 500);
@@ -608,7 +610,7 @@ public:
 
 	void resizeViewPort() {
 		animationTime = glutGet(GLUT_ELAPSED_TIME);
-		space = true;
+		accTime = animationTime;
 		glLoadIdentity();
 		gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
 				viewPortPosition.y, viewPortPosition.y + 500);
@@ -616,8 +618,21 @@ public:
 
 };
 
-Vector para[2000];
+Vector para[4000];
+struct IntersectionPoint {
+	Vector intersection;
+	Vector parabolaNormalVector;
+	Vector splineNormalVector;
+	Vector tangentOfSpline;
 
+public:
+	IntersectionPoint() {
+		intersection = parabolaNormalVector = splineNormalVector = Vector();
+		tangentOfSpline = Vector();
+	}
+};
+
+IntersectionPoint intersection;
 class Parabola {
 	Vector normalVector;
 public:
@@ -726,9 +741,19 @@ public:
 		if (pointsWithTime.SizeOf() >= 3) {
 			calculateNormalVector();
 
+//			glColor3f(0.255, 0.898, 0.969);
+//						glBegin(GL_TRIANGLE_FAN);
+//			for(int x=0; x<1000; x++){
+//				for(int y=0; y<1000; y++){
+//					glVertex2f(x, y);
+//				}
+//			}
+//			glEnd();
+			glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image2);
+
 			glColor3f(1, 1, 0);
 			glBegin(GL_TRIANGLE_FAN);
-			for (float x = -1000; x < 1000; x++) {
+			for (float x = -1000; x < 1000; x = x + 0.5) {
 
 				Vector point = calculateTransformedPoint(x);
 
@@ -743,9 +768,8 @@ public:
 			}
 
 			glEnd();
-			cout<<i<<endl;
 			glBegin(GL_TRIANGLE_FAN);
-			for(int k = 0; k<i;k++){
+			for (int k = 0; k < i; k++) {
 				glVertex2f(para[k].x, para[k].y);
 			}
 			glEnd();
@@ -756,15 +780,18 @@ public:
 			calculateNormalVector();
 			float rotation = getRotationInRad();
 			Vector push = getTranslateVector();
-			glPushMatrix();
-			glTranslatef(push.x, push.y, 0);
-			glRotatef(rotation, 0, 0, 1);
+//			glPushMatrix();
+//			glTranslatef(push.x, push.y, 0);
+//			glRotatef(180/PI_MAT*rotation, 0, 0, 1);
 
 			glColor3f(0, 1, 0);
-//			glBegin(GL_LINE_STRIP);
+			glBegin(GL_LINE_STRIP);
 
-			float m = 1 / (distancePointFromLine()) * 300;
-			float y0 = 1 / (2 * distancePointFromLine()) * powf(300, 2);
+			float m = 1 / (distancePointFromLine())
+					* intersection.intersection.x;
+			float y0 = 1 / (2 * distancePointFromLine())
+					* powf(intersection.intersection.x, 2);
+
 			for (float x = -1000; x <= 1000; x++) {
 
 //				float y1 = normalVector.x * (-1)
@@ -774,19 +801,18 @@ public:
 
 //				Y = -normalVector.x/normalVector.y;
 
-				float X = x;
-				float y;
 				float p = distancePointFromLine();
-				y = 1 / (p) * x;
+				float y = 1 / (p) * x;
 				float Y = m * (x) - y0;
-				;
-
-//				glVertex2f(x, Y);
+				Vector point = Vector(x, Y);
+				myMatrix transformationMatrix = calculateTranformationMatrix();
+				point = point * transformationMatrix;
+//				glVertex2f(point.x, point.y);
 
 			}
 
-//			glEnd();
-			glPopMatrix();
+			glEnd();
+//			glPopMatrix();
 
 		}
 
@@ -796,6 +822,85 @@ public:
 
 Parabola parabola;
 
+class TangentialToParabola {
+public:
+	void drawLine() {
+		if (pointsWithTime.SizeOf() >= 3) {
+
+			glColor3f(0, 0.7, 0);
+			glBegin(GL_LINE_STRIP);
+
+			Vector intersectionPoin = intersection.intersection;
+			myMatrix mI = parabola.calculateTranformationMatrix().inverse();
+
+			intersectionPoin = intersectionPoin * mI;
+
+			float m = 1 / (parabola.distancePointFromLine())
+					* intersectionPoin.x;
+//			float y0 = 1 / (2 * parabola.distancePointFromLine())
+//					* powf(intersectionPoin.x, 2);
+			float y0 = intersectionPoin.y;
+
+			for (float x = -1000; x <= 1000; x++) {
+
+				//				float y1 = normalVector.x * (-1)
+				//						* (x - pointsWithTime[1].controllPoint.x);
+				//				float y2 = y1 / normalVector.y;
+				//				float Y = y2 + pointsWithTime[1].controllPoint.y;
+
+				//				Y = -normalVector.x/normalVector.y;
+
+//				float p = distancePointFromLine();
+//				float y = 1 / (p) * x;
+				float Y = m * (x) - y0;
+				Vector point = Vector(x, Y);
+				myMatrix transformationMatrix =
+						parabola.calculateTranformationMatrix();
+				point = point * transformationMatrix;
+				glVertex2f(point.x, point.y);
+
+			}
+
+			glEnd();
+			//			glPopMatrix();
+
+		}
+
+	}
+};
+
+class TangentialToSpline {
+public:
+	void drawLine() {
+		if (pointsWithTime.SizeOf() >= 3) {
+
+			glColor3f(0, 0.7, 0);
+			glBegin(GL_LINE_STRIP);
+
+			Vector intersectionPoin = intersection.intersection;
+			Vector dir = intersection.tangentOfSpline;
+
+			for (float x = -1000; x <= 1000; x++) {
+
+				float y1 = dir.y * intersectionPoin.x;
+				float y2 = dir.x * intersectionPoin.y;
+				float y3 = dir.y * x;
+				float y4 = y1 - y2 - y3;
+				float Y = y4 / (-dir.x);
+
+				glVertex2f(x, Y);
+
+			}
+
+			glEnd();
+
+		}
+
+	}
+};
+
+bool ggg = true;
+int jjj = 0;
 class CatmullRom {
 public:
 	Array<ControllPointWithTime, 10> arrayOfPoints;
@@ -877,17 +982,22 @@ private:
 		return acct;
 	}
 
-	bool getIntersectionWithParabola(Vector splinePoint) {
+	bool getIntersectionWithParabola(const Vector& splinePoint,
+			Vector velocity) {
 		bool notFound = true;
 
-		for (float x = -1000; x <= 1000; x = x + 0.1) {
+		for (int i = 0; i <= 4000; i++) {
 
-			Vector parabolaPoint = parabola.calculateTransformedPoint(x);
-			if (fabs(parabolaPoint.y - splinePoint.y) <= 2 && fabs(parabolaPoint.x - splinePoint.x)<=2 && notFound) {
-				cout << "talalt " <<splinePoint.x<<" "<<splinePoint.y<<endl;
-				Circle c = Circle(parabolaPoint, 10);
-				c.drawOut();
+			Vector parabolaPoint = para[i];
+			if (fabs(parabolaPoint.y - splinePoint.y) <= 0.5
+					&& fabs(parabolaPoint.x - splinePoint.x) <= 0.5 && notFound) {
+
+				if (!space) {
+					intersection.intersection = splinePoint;
+					intersection.tangentOfSpline = velocity;
+				}
 				notFound = false;
+
 				return true;
 			}
 
@@ -904,19 +1014,21 @@ public:
 		glBegin(GL_LINE_STRIP);
 
 		float t;
-		Vector v0;
-		Vector v1;
-		Vector v2;
+		Vector v_3;
+		Vector v_2;
+		Vector v_1;
 		bool b = false;
 
 		for (int j = 0; j < piecesOfControllPoints - 1; ++j) {
 //
 //			for (t = arrayOfPoints[j].time; t <= arrayOfPoints[j + 1].time; t +=
 //					1) {
-
+			int step = 5;
+			if (j == 1)
+				step = 1;
 			for (t = 0;
 					t <= fabs(arrayOfPoints[j + 1].time - arrayOfPoints[j].time);
-					t += 10) {
+					t += step) {
 
 //				float f3 = (powf(((t - arrayOfPoints[j].time)), (float) 3));
 //
@@ -926,20 +1038,27 @@ public:
 //				v1 = a_2(j) * (f2);
 //				v2 = velCatR(j) * (t - arrayOfPoints[j].time);
 //
-//				vect = (v0 + v1 + v2 + arrayOfPoints[j].controllPoint);
+//				vect = (v_3 + v_2 + v_1 + arrayOfPoints[j].controllPoint);
 //				glVertex2f(vect.x, vect.y);
 
 				float f3 = (powf(((t)), (float) 3));
 
 				float f2 = (powf((t), (float) 2));
 
-				v0 = a_3(j) * (f3);
-				v1 = a_2(j) * (f2);
-				v2 = velCatR(j) * (t);
+				v_3 = a_3(j) * (f3);
+				v_2 = a_2(j) * (f2);
+				v_1 = velCatR(j) * (t);
 
-				vect = (v0 + v1 + v2 + arrayOfPoints[j].controllPoint);
-				//if (arrayOfPoints.SizeOf() >= 3 && !b)
-				//	b = getIntersectionWithParabola(vect);
+				vect = (v_3 + v_2 + v_1 + arrayOfPoints[j].controllPoint);
+
+				if (arrayOfPoints.SizeOf() >= 3 && !b && j == 1) {
+					Vector p_3 = a_3(j) * f2 * 3;
+					Vector p_2 = a_2(j) * t * 2;
+
+					Vector velocity = p_3 + p_2 + velCatR(j);
+					b = getIntersectionWithParabola(vect, velocity);
+
+				}
 
 				glVertex2f(vect.x, vect.y);
 
@@ -952,23 +1071,30 @@ public:
 					arrayOfPoints[0].controllPoint.y);
 		}
 		glEnd();
+
 	}
 
 };
-
+Animation animate = Animation();
 void addControlPointToArray(int x, int y, long time) {
 	ControllPointWithTime controllPoint;
 	Vector center;
-	center.x = (float) x * ((float) 1000 / screenWidth);
-	center.y = 1000 - y * ((float) 1000 / screenHeight);
+	if (!space) {
+		center.x = (float) x * ((float) 1000 / screenWidth);
+		center.y = 1000 - y * ((float) 1000 / screenHeight);
+	}else {
+		center.x = ((float) x * ((float) 500 / screenWidth))
+				+ animate.viewPortPosition.x;
+		center.y = (500 - y * ((float) 500 / screenHeight))
+				+ animate.viewPortPosition.y;
+	}
+
 	controllPoint.controllPoint = center;
 	controllPoint.time = time;
 	pointsWithTime.Add(controllPoint);
 
 	piecesOfControllPoints++;
 }
-
-Animation animate = Animation();
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization() {
@@ -979,7 +1105,10 @@ void onInitialization() {
 	// Peldakent keszitunk egy kepet az operativ memoriaba
 	for (int Y = 0; Y < screenHeight; Y++)
 		for (int X = 0; X < screenWidth; X++)
-			image[Y * screenWidth + X] = Color(0.255, 0.898, 0.969);
+			image[Y * screenWidth + X] = Color(0, 0, 0);
+	for (int Y = 0; Y < screenHeight; Y++)
+		for (int X = 0; X < screenWidth; X++)
+			image2[Y * screenWidth + X] = Color(0.255, 0.898, 0.969);
 
 }
 
@@ -1004,6 +1133,13 @@ void onDisplay() {
 		Circle c = Circle(pointsWithTime[i].controllPoint, 5);
 		c.drawOut();
 	}
+
+	TangentialToParabola tangentialToParabola;
+	tangentialToParabola.drawLine();
+	TangentialToSpline tangentialToSpline;
+	tangentialToSpline.drawLine();
+	Circle cc = Circle(intersection.intersection, 10);
+//	cc.drawOut();
 	animate.animation();
 	glutSwapBuffers();     				// Buffercsere: rajzolas vege
 
@@ -1013,7 +1149,7 @@ void onDisplay() {
 void onKeyboard(unsigned char key, int x, int y) {
 	if (key == ' ' && !space) {
 		animate.resizeViewPort();
-		animate.randomBeginingDir();
+		space = true;
 	}
 	glutPostRedisplay(); 		// d beture rajzold ujra a kepet
 
