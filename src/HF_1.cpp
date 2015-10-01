@@ -63,55 +63,6 @@ using namespace std;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Innentol modosithatod...
 
-//--------------------------------------------------------
-// 3D Vektor
-//--------------------------------------------------------
-struct Vector {
-	float x, y, z;
-
-	Vector() {
-		x = y = z = 0;
-	}
-	Vector(float x0, float y0, float z0 = 0) {
-		x = x0;
-		y = y0;
-		z = z0;
-	}
-	Vector operator*(float a) {
-		return Vector(x * a, y * a, z * a);
-	}
-	Vector operator/(float a) {
-		return Vector(x / a, y / a, z / a);
-	}
-	Vector operator+(const Vector& v) {
-		return Vector(x + v.x, y + v.y, z + v.z);
-	}
-	Vector operator-(const Vector& v) {
-		return Vector(x - v.x, y - v.y, z - v.z);
-	}
-	float operator*(const Vector& v) { 	// dot product
-		return (x * v.x + y * v.y + z * v.z);
-	}
-	Vector operator%(const Vector& v) { 	// cross product
-		return Vector(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
-	}
-	float Length() {
-		return sqrt(x * x + y * y + z * z);
-	}
-
-	void Normalize() {
-		float l = Length();
-		if (l < 0.000001f) {
-			x = 0;
-			y = 0;
-			z = 0;
-		} else {
-			x /= l;
-			y /= l;
-			z /= l;
-		}
-	}
-};
 
 //--------------------------------------------------------
 // Spektrum illetve szin
@@ -172,6 +123,350 @@ public:
 		if (i >= size)
 			exit(-1);
 		return array[i];
+	}
+
+};
+
+void getMinor(float** source, float** destination, int row, int col,
+		int order) {
+	int colCount = 0;
+	int rowCount = 0;
+
+	for (int i = 0; i < order; i++) {
+		if (i != row) {
+			colCount = 0;
+			for (int j = 0; j < order; j++) {
+				if (j != col) {
+					destination[rowCount][colCount] = source[i][j];
+					colCount++;
+				}
+			}
+			rowCount++;
+		}
+
+	}
+}
+
+float calcDeterminant(float** matrix, int order) {
+	if (order == 1) {
+		return matrix[0][0];
+	}
+
+	float det = 0;
+
+	float** minor = new float*[order - 1];
+	for (int i = 0; i < order - 1; i++) {
+		minor[i] = new float[order - 1];
+	}
+
+	for (int i = 0; i < order; i++) {
+		getMinor(matrix, minor, i, 0, order);
+
+		det += (i % 2 == 1 ? -1 : 1) * matrix[i][0]
+				* calcDeterminant(minor, order - 1);
+	}
+
+	for (int i = 0; i < order - 1; i++)
+		delete[] minor[i];
+	delete[] minor;
+
+	return det;
+}
+
+struct myMatrix {
+//	A B C D
+//	E F G H
+//	I J K L
+//	M N O P
+
+	float M[4][4];
+
+	myMatrix() {
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				M[i][j] = 0;
+			}
+		}
+	}
+
+	myMatrix(float a, float b, float c, float d, float e, float f, float g,
+			float h, float i, float j) {
+		M[0][0] = a;
+		M[0][1] = b;
+		M[0][2] = c;
+		M[0][3] = d;
+		M[1][0] = b;
+		M[1][1] = e;
+		M[1][2] = f;
+		M[1][3] = g;
+		M[2][0] = c;
+		M[2][1] = f;
+		M[2][2] = h;
+		M[2][3] = i;
+		M[3][0] = d;
+		M[3][1] = g;
+		M[3][2] = i;
+		M[3][3] = j;
+	}
+
+	myMatrix(float a, float b, float c, float d, float e, float f, float g,
+			float h, float i, float j, float k, float l, float m, float n,
+			float o, float p) {
+		M[0][0] = a;
+		M[0][1] = b;
+		M[0][2] = c;
+		M[0][3] = d;
+		M[1][0] = e;
+		M[1][1] = f;
+		M[1][2] = g;
+		M[1][3] = h;
+		M[2][0] = i;
+		M[2][1] = j;
+		M[2][2] = k;
+		M[2][3] = l;
+		M[3][0] = m;
+		M[3][1] = n;
+		M[3][2] = o;
+		M[3][3] = p;
+	}
+
+	myMatrix operator+(const myMatrix & A) {
+		myMatrix B;
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				B.M[i][j] = M[i][j] + A.M[i][j];
+			}
+		}
+
+		return B;
+	}
+
+	myMatrix operator*(float f) {
+		myMatrix B;
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				B.M[i][j] = M[i][j] * f;
+			}
+		}
+
+		return B;
+	}
+
+	myMatrix operator*(const myMatrix & A) {
+		myMatrix B;
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				B.M[i][j] = 0;
+				for (int k = 0; k < 4; k++) {
+					B.M[i][j] = B.M[i][j] + M[i][k] * A.M[k][j];
+				}
+
+			}
+		}
+
+		return B;
+
+	}
+
+	void printM() {
+		for (int i = 0; i < 4; i++) {
+			{
+				cout << M[i][0] << " " << M[i][1] << " " << M[i][2] << " "
+						<< M[i][3] << endl;
+			}
+
+		}
+
+	}
+
+	myMatrix Transp() {
+
+		myMatrix A;
+		A.M[0][0] = M[0][0];
+		A.M[0][1] = M[1][0];
+		A.M[0][2] = M[2][0];
+		A.M[0][3] = M[3][0];
+		A.M[1][0] = M[0][1];
+		A.M[1][1] = M[1][1];
+		A.M[1][2] = M[2][1];
+		A.M[1][3] = M[3][1];
+		A.M[2][0] = M[0][2];
+		A.M[2][1] = M[1][2];
+		A.M[2][2] = M[2][2];
+		A.M[2][3] = M[3][2];
+		A.M[3][0] = M[0][3];
+		A.M[3][1] = M[1][3];
+		A.M[3][2] = M[2][3];
+		A.M[3][3] = M[3][3];
+
+		return A;
+	}
+
+	myMatrix inverse() {
+		float** matrix = new float*[4];
+		for (int i = 0; i < 4; i++)
+			matrix[i] = new float[4];
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				matrix[i][j] = M[i][j];
+			}
+		}
+
+		myMatrix inverse = myMatrix();
+
+		float** minor = new float*[3];
+		for (int i = 0; i < 3; i++)
+			minor[i] = new float[3];
+
+		float determinant = calcDeterminant(matrix, 4);
+		if (determinant == 0)
+			return inverse;
+
+		for (int j = 0; j < 4; j++) {
+			for (int i = 0; i < 4; i++) {
+				getMinor(matrix, minor, j, i, 4);
+				inverse.M[i][j] = calcDeterminant(minor, 3) / determinant;
+				if ((i + j) % 2 == 1) {
+					inverse.M[i][j] *= (-1);
+
+				}
+			}
+		}
+
+		delete[] matrix;
+		delete[] minor;
+		return inverse;
+	}
+
+};
+
+struct Vector {
+	float x, y, z, w;
+
+	Vector() {
+		x = y = z = w = 0;
+	}
+	Vector(float x0, float y0, float z0 = 0, float w0 = 1) {
+		x = x0;
+		y = y0;
+		z = z0;
+		w = w0;
+	}
+	Vector operator*(float a) {
+		return Vector(x * a, y * a, z * a);
+	}
+	Vector operator*(float a) const {
+		return Vector(x * a, y * a, z * a);
+	}
+	Vector operator/(float a) {
+		return Vector(x / a, y / a, z / a);
+	}
+	Vector operator+(const Vector& v) {
+		return Vector(x + v.x, y + v.y, z + v.z);
+	}
+	Vector operator+(const Vector& v) const {
+		return Vector(x + v.x, y + v.y, z + v.z);
+	}
+	Vector operator-(const Vector& v) {
+		return Vector(x - v.x, y - v.y, z - v.z, 0);
+	}
+	Vector operator-(const Vector& v) const {
+		return Vector(x - v.x, y - v.y, z - v.z, 0);
+	}
+	float operator*(const Vector& v) { 	// dot product
+		return (x * v.x + y * v.y + z * v.z + w * v.w);
+	}
+	float operator*(const Vector& v) const { 	// dot product
+		return (x * v.x + y * v.y + z * v.z);
+	}
+
+	Vector operator%(const Vector& v) { 	// cross product
+		return Vector(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x,
+				0);
+	}
+	float Length() {
+		return sqrt(x * x + y * y + z * z);
+	}
+	Vector operator+(float a) {
+		return Vector(x + a, y + a, z + a);
+	}
+
+	void Normalize() {
+		float l = Length();
+		if (l < 0.000001f) {
+			x = 0;
+			y = 0;
+			z = 0;
+		} else {
+			x /= l;
+			y /= l;
+			z /= l;
+			w = 0;
+		}
+	}
+
+	void homogen() {
+		if (w != 0) {
+			x /= fabs(w);
+			y /= fabs(w);
+			z /= fabs(w);
+			w = 0;
+
+		}
+	}
+
+	Vector operator-(void) {
+		return Vector(-x, -y, -z);
+	}
+	void operator+=(const Vector& v) {
+		x += v.x;
+		y += v.y;
+		z += v.z;
+	}
+	void operator-=(const Vector& v) {
+		x -= v.x;
+		y -= v.y;
+		z -= v.z;
+	}
+	void operator*=(float f) {
+		x *= f;
+		y *= f;
+		z *= f;
+	}
+
+	void printOut() {
+		cout << "x:" << x << " y:" << y << " z:" << z << " w:" << w << endl;
+	}
+
+	Vector operator*(const myMatrix & A) {
+		float V_a[4] = { 0, 0, 0, 0 };
+		float V_b[4] = { x, y, z, w };
+
+		for (int j = 0; j < 4; j++) {
+			for (int i = 0; i < 4; i++)
+				V_a[j] += ((V_b[i] * (A.M[i][j])));
+		}
+
+		Vector V = Vector(V_a[0], V_a[1], V_a[2], V_a[3]);
+
+		return V;
+	}
+
+	Vector operator*(const myMatrix & A) const {
+		float V_a[4] = { 0, 0, 0, 0 };
+		float V_b[4] = { x, y, z, w };
+
+		for (int j = 0; j < 4; j++) {
+			for (int i = 0; i < 4; i++)
+				V_a[j] += ((V_b[i] * (A.M[i][j])));
+		}
+
+		Vector V = Vector(V_a[0], V_a[1], V_a[2], V_a[3]);
+
+		return V;
 	}
 
 };
@@ -242,6 +537,264 @@ public:
 	}
 
 };
+
+bool space = false;
+
+class Animation {
+	Vector viewPortPosition;
+	long animationTime;
+	Vector myDir;
+
+	bool moveLeft;
+	bool moveRight;
+
+public:
+
+	Animation() {
+		moveLeft = true;
+		moveRight = false;
+		animationTime = 0;
+		viewPortPosition.x = 250;
+		viewPortPosition.y = 250;
+		myDir = Vector();
+
+	}
+
+	void randomBeginingDir() {
+		long time = glutGet(GLUT_ELAPSED_TIME);
+		myDir = Vector(2, 3);
+		myDir.Normalize();
+	}
+
+	Vector getNormalOfTheWall() {
+		if (viewPortPosition.x <= 0) {
+			return Vector(1, 0);
+		} else if (viewPortPosition.x >= 500) {
+			return Vector(-1, 0);
+		} else if (viewPortPosition.y <= 0) {
+			return Vector(0, 1);
+		} else if (viewPortPosition.y >= 500) {
+			return Vector(0, -1);
+		} else {
+			return Vector();
+		}
+	}
+
+	Vector reflect() {
+		Vector inDir = myDir;
+		inDir.Normalize();
+		Vector normVect = getNormalOfTheWall();
+		normVect.Normalize();
+
+		return inDir - normVect * (normVect * inDir) * 2;
+	}
+
+	void animation() {
+		long time = glutGet(GLUT_ELAPSED_TIME);
+		if (time - animationTime > 5 && space) {
+
+			animationTime = glutGet(GLUT_ELAPSED_TIME);
+
+			myDir = reflect();
+
+			viewPortPosition.x = myDir.x * 2 + viewPortPosition.x;
+			viewPortPosition.y = myDir.y * 2 + viewPortPosition.y;
+			glLoadIdentity();
+			gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
+					viewPortPosition.y, viewPortPosition.y + 500);
+
+		}
+	}
+
+	void resizeViewPort() {
+		animationTime = glutGet(GLUT_ELAPSED_TIME);
+		space = true;
+		glLoadIdentity();
+		gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
+				viewPortPosition.y, viewPortPosition.y + 500);
+	}
+
+};
+
+Vector para[2000];
+
+class Parabola {
+	Vector normalVector;
+public:
+
+	Parabola() {
+
+	}
+
+	Vector getDirectionVector() {
+		// Kiszamolom hogy mi az iranyvektora az egyenesnek, de ugy hogy mindig "jobbra mutasson"
+		// Ha a kulonbseg vektor x koordinataja kisebb mint 0 akkor meg kell forditani
+		if (pointsWithTime.SizeOf() >= 3) {
+			Vector differentVector = pointsWithTime[0].controllPoint
+					- pointsWithTime[1].controllPoint;
+			if (differentVector.x < 0)
+				differentVector = differentVector * (-1);
+			return differentVector;
+		}
+		return Vector();
+	}
+
+	void calculateNormalVector() {
+		// Normal vektor kiszamitasa, ugy hogy mindig felfele mutasson. Ezert kellett az iranyvektornak
+		// Mindig jobbra mutatnia
+		Vector direction = getDirectionVector();
+		direction.Normalize();
+		Vector normal = direction % Vector(0, 0, -1);
+		normal.Normalize();
+		normalVector = normal;
+	}
+
+	float distancePointFromLine() {
+		// Elojelesen adja meg hogy az egyenestol mennyire van a pont, igy az eltolas
+		// meghatarozasanal nem kell egyebb feltetelt vizsgalni
+		return normalVector
+				* (pointsWithTime[2].controllPoint
+						- pointsWithTime[0].controllPoint);
+	}
+
+	float getRotationInRad() {
+		// Kiszamolom a bezart szoget az iranyvektor es a  (1,0,0) vektor kozott
+		// attol fuggoen hogy monoton novekvo vagy csokkeno az egyenes megvaltoztatom
+		// 180 fokkot hozza adok ha csokken
+		Vector dir = getDirectionVector();
+		dir.Normalize();
+
+		float rad = acos(Vector(1, 0, 0) * dir);
+
+		float y1 = normalVector.x * (-1)
+				* (500 - pointsWithTime[1].controllPoint.x);
+		float y2 = y1 / normalVector.y;
+		float Y1 = y2 + pointsWithTime[1].controllPoint.y;
+
+		y1 = normalVector.x * (-1) * (550 - pointsWithTime[1].controllPoint.x);
+		y2 = y1 / normalVector.y;
+		float Y2 = y2 + pointsWithTime[1].controllPoint.y;
+
+		if (Y1 > Y2) {
+			rad = (PI_MAT - rad) + PI_MAT;
+		}
+
+		return rad;
+	}
+
+	Vector getTranslateVector() {
+		// Megvan a normal vektor, mivel a tavolsag elojeles igy csak hozza kell adni a -1 szereset
+		// a fokusz koordinatajahoz
+		float dist = distancePointFromLine() / 2;
+		Vector pushVector = normalVector * dist;
+
+		pushVector = pushVector * (-1);
+
+		pushVector = pointsWithTime[2].controllPoint + pushVector;
+
+		return pushVector;
+	}
+
+	myMatrix calculateTranformationMatrix() {
+		float rotation = getRotationInRad();
+
+		Vector push = getTranslateVector();
+		myMatrix translateMatrix = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+				push.x, push.y, 0, 1);
+		myMatrix rotationMatrix = myMatrix(cos(rotation), sin(rotation), 0, 0,
+				-sin(rotation), cos(rotation), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+		myMatrix transformationMatrix = rotationMatrix * translateMatrix;
+		return transformationMatrix;
+	}
+
+	Vector calculateTransformedPoint(float x) {
+//		calculateNormalVector();
+
+		float y;
+		float p = distancePointFromLine();
+		y = 1 / (2 * p) * powf(x, 2);
+		Vector point = Vector(x, y);
+
+		myMatrix transformationMatrix = calculateTranformationMatrix();
+		Vector transformedPoint = point * transformationMatrix;
+
+		return transformedPoint;
+	}
+
+	void printParabola() {
+		int i = 0;
+		if (pointsWithTime.SizeOf() >= 3) {
+			calculateNormalVector();
+
+			glColor3f(1, 1, 0);
+			glBegin(GL_TRIANGLE_FAN);
+			for (float x = -1000; x < 1000; x++) {
+
+				Vector point = calculateTransformedPoint(x);
+
+////				cout<<normalVector.x<<" "<<normalVector.y<<endl;
+//				float y1 = normalVector.x*(-1)*(x-pointsWithTime[1].controllPoint.x);
+//				float y2 = y1 / normalVector.y;
+//				float Y = y2 + pointsWithTime[1].controllPoint.y;
+				para[i] = point;
+//				glVertex2f(point.x, point.y);
+				i++;
+
+			}
+
+			glEnd();
+			cout<<i<<endl;
+			glBegin(GL_TRIANGLE_FAN);
+			for(int k = 0; k<i;k++){
+				glVertex2f(para[k].x, para[k].y);
+			}
+			glEnd();
+
+		}
+
+		if (pointsWithTime.SizeOf() >= 3) {
+			calculateNormalVector();
+			float rotation = getRotationInRad();
+			Vector push = getTranslateVector();
+			glPushMatrix();
+			glTranslatef(push.x, push.y, 0);
+			glRotatef(rotation, 0, 0, 1);
+
+			glColor3f(0, 1, 0);
+//			glBegin(GL_LINE_STRIP);
+
+			float m = 1 / (distancePointFromLine()) * 300;
+			float y0 = 1 / (2 * distancePointFromLine()) * powf(300, 2);
+			for (float x = -1000; x <= 1000; x++) {
+
+//				float y1 = normalVector.x * (-1)
+//						* (x - pointsWithTime[1].controllPoint.x);
+//				float y2 = y1 / normalVector.y;
+//				float Y = y2 + pointsWithTime[1].controllPoint.y;
+
+//				Y = -normalVector.x/normalVector.y;
+
+				float X = x;
+				float y;
+				float p = distancePointFromLine();
+				y = 1 / (p) * x;
+				float Y = m * (x) - y0;
+				;
+
+//				glVertex2f(x, Y);
+
+			}
+
+//			glEnd();
+			glPopMatrix();
+
+		}
+
+	}
+
+};
+
+Parabola parabola;
 
 class CatmullRom {
 public:
@@ -323,10 +876,28 @@ private:
 
 		return acct;
 	}
+
+	bool getIntersectionWithParabola(Vector splinePoint) {
+		bool notFound = true;
+
+		for (float x = -1000; x <= 1000; x = x + 0.1) {
+
+			Vector parabolaPoint = parabola.calculateTransformedPoint(x);
+			if (fabs(parabolaPoint.y - splinePoint.y) <= 2 && fabs(parabolaPoint.x - splinePoint.x)<=2 && notFound) {
+				cout << "talalt " <<splinePoint.x<<" "<<splinePoint.y<<endl;
+				Circle c = Circle(parabolaPoint, 10);
+				c.drawOut();
+				notFound = false;
+				return true;
+			}
+
+		}
+		return false;
+	}
+
 public:
 	void drawCatmullR() {
 		glColor3f(1, 1, 1);
-		//glLineWidth(2.5);
 
 		Vector vect;
 
@@ -336,6 +907,7 @@ public:
 		Vector v0;
 		Vector v1;
 		Vector v2;
+		bool b = false;
 
 		for (int j = 0; j < piecesOfControllPoints - 1; ++j) {
 //
@@ -344,7 +916,7 @@ public:
 
 			for (t = 0;
 					t <= fabs(arrayOfPoints[j + 1].time - arrayOfPoints[j].time);
-					t += 1) {
+					t += 10) {
 
 //				float f3 = (powf(((t - arrayOfPoints[j].time)), (float) 3));
 //
@@ -366,6 +938,9 @@ public:
 				v2 = velCatR(j) * (t);
 
 				vect = (v0 + v1 + v2 + arrayOfPoints[j].controllPoint);
+				//if (arrayOfPoints.SizeOf() >= 3 && !b)
+				//	b = getIntersectionWithParabola(vect);
+
 				glVertex2f(vect.x, vect.y);
 
 			}
@@ -377,210 +952,6 @@ public:
 					arrayOfPoints[0].controllPoint.y);
 		}
 		glEnd();
-	}
-
-};
-bool space = false;
-
-class Animation {
-	Vector viewPortPosition;
-	long animationTime;
-	Vector myDir;
-
-	bool moveLeft;
-	bool moveRight;
-
-public:
-
-	Animation() {
-		moveLeft = true;
-		moveRight = false;
-		animationTime = 0;
-		viewPortPosition.x = 150;
-		viewPortPosition.y = 150;
-		myDir = Vector();
-
-	}
-
-	void randomBeginingDir() {
-		long time = glutGet(GLUT_ELAPSED_TIME);
-		float randomX = time % 17;
-		float randomY = time % 11;
-		cout << randomX << "  " << randomY << endl;
-		myDir = Vector(randomX, randomY);
-		myDir.Normalize();
-	}
-
-	Vector getNormalOfTheWall() {
-		if (viewPortPosition.x <= 0) {
-			return Vector(1, 0);
-		} else if (viewPortPosition.x >= 300) {
-			return Vector(-1, 0);
-		} else if (viewPortPosition.y <= 0) {
-			return Vector(0, 1);
-		} else if (viewPortPosition.y >= 300) {
-			return Vector(0, -1);
-		} else {
-			return Vector();
-		}
-	}
-
-	Vector reflect() {
-		Vector inDir = myDir;
-		inDir.Normalize();
-		Vector normVect = getNormalOfTheWall();
-		normVect.Normalize();
-
-		return inDir - normVect * (normVect * inDir) * 2;
-	}
-
-	void animation() {
-		long time = glutGet(GLUT_ELAPSED_TIME);
-		if (time - animationTime > 5 && space) {
-
-			animationTime = glutGet(GLUT_ELAPSED_TIME);
-
-			myDir = reflect();
-
-			viewPortPosition.x = myDir.x * 2 + viewPortPosition.x;
-			viewPortPosition.y = myDir.y * 2 + viewPortPosition.y;
-			glViewport(viewPortPosition.x, viewPortPosition.y, 300, 300);
-
-		}
-	}
-
-	void resizeViewPort() {
-		animationTime = glutGet(GLUT_ELAPSED_TIME);
-		space = true;
-		glViewport(viewPortPosition.x, viewPortPosition.y, 300, 300);
-	}
-
-};
-
-class Parabola {
-	Vector normalVector;
-public:
-
-	Parabola() {
-
-	}
-
-	Vector getDirectionVector() {
-		if (pointsWithTime.SizeOf() >= 3) {
-			Vector differentVector = pointsWithTime[0].controllPoint
-					- pointsWithTime[1].controllPoint;
-			if (differentVector.x < 0)
-				differentVector = differentVector * (-1);
-			return differentVector;
-		}
-		return Vector();
-	}
-
-	void calculateNormalVector() {
-		Vector direction = getDirectionVector();
-		direction.Normalize();
-		Vector normal = direction % Vector(0, 0, -1);
-		normal.Normalize();
-		normalVector = normal;
-	}
-
-	float distancePointFromLine() {
-		return normalVector
-				* (pointsWithTime[2].controllPoint
-						- pointsWithTime[0].controllPoint);
-	}
-
-	float getRotationInDegree() {
-		Vector dir = getDirectionVector();
-		dir.Normalize();
-//		cout<<"Dir: x "<<dir.x<<" y "<<dir.y<<endl;
-//		cout<<"Norm: x "<<normalVector.x<<" y "<<normalVector.y<<endl;
-
-		float rad = acos( Vector(1, 0, 0)*dir);
-//		cout<<"Rotation: "<<rad<<endl;
-		float y1 = normalVector.x * (-1)
-				* (500 - pointsWithTime[1].controllPoint.x);
-		float y2 = y1 / normalVector.y;
-		float Y1 = y2 + pointsWithTime[1].controllPoint.y;
-
-		y1 = normalVector.x * (-1) * (550 - pointsWithTime[1].controllPoint.x);
-		y2 = y1 / normalVector.y;
-		float Y2 = y2 + pointsWithTime[1].controllPoint.y;
-
-		if (Y1 > Y2) {
-			rad = (PI_MAT - rad)+PI_MAT;
-		}
-
-		float deg = 180 / PI_MAT * rad;
-		return deg;
-	}
-
-	void printParabola() {
-		if (pointsWithTime.SizeOf() >= 3) {
-			calculateNormalVector();
-			float rotation = getRotationInDegree();
-			cout << "Rotation: " << rotation << endl;
-
-			glPushMatrix();
-			glTranslatef(pointsWithTime[2].controllPoint.x, pointsWithTime[2].controllPoint.y, 0);
-			glRotatef(rotation, 0, 0, 1);
-
-			glColor3f(0, 1, 0);
-			glBegin(GL_LINE_STRIP);
-			for (float x = -1000; x < 1000; x++) {
-				float X = x;
-				float y;
-				float p = distancePointFromLine();
-				y = 1 / (2 * p) * powf(x, 2);
-				float Y = y;
-//
-
-////				cout<<normalVector.x<<" "<<normalVector.y<<endl;
-//				float y1 = normalVector.x*(-1)*(x-pointsWithTime[1].controllPoint.x);
-//				float y2 = y1 / normalVector.y;
-//				float Y = y2 + pointsWithTime[1].controllPoint.y;
-				glVertex2f(X, Y);
-
-			}
-
-			glEnd();
-			glPopMatrix();
-
-		}
-
-
-		if (pointsWithTime.SizeOf() >= 3) {
-					calculateNormalVector();
-					float rotation = getRotationInDegree();
-					cout << "Rotation: " << rotation << endl;
-
-					glPushMatrix();
-//					glTranslatef(pointsWithTime[2].controllPoint.x, pointsWithTime[2].controllPoint.y, 0);
-//					glRotatef(rotation, 0, 0, 1);
-
-					glColor3f(1, 1, 0);
-					glBegin(GL_LINE_STRIP);
-					for (float x = -1000; x < 1000; x++) {
-//						float X = x;
-//						float y;
-//						float p = distancePointFromLine();
-//						y = 1 / (2 * p) * powf(x, 2);
-//						float Y = y;
-		//
-
-		//				cout<<normalVector.x<<" "<<normalVector.y<<endl;
-						float y1 = normalVector.x*(-1)*(x-pointsWithTime[1].controllPoint.x);
-						float y2 = y1 / normalVector.y;
-						float Y = y2 + pointsWithTime[1].controllPoint.y;
-						glVertex2f(x, Y);
-
-					}
-
-					glEnd();
-					glPopMatrix();
-
-				}
-
 	}
 
 };
@@ -598,7 +969,6 @@ void addControlPointToArray(int x, int y, long time) {
 }
 
 Animation animate = Animation();
-Parabola parabola;
 
 // Inicializacio, a program futasanak kezdeten, az OpenGL kontextus letrehozasa utan hivodik meg (ld. main() fv.)
 void onInitialization() {
@@ -609,7 +979,7 @@ void onInitialization() {
 	// Peldakent keszitunk egy kepet az operativ memoriaba
 	for (int Y = 0; Y < screenHeight; Y++)
 		for (int X = 0; X < screenWidth; X++)
-			image[Y * screenWidth + X] = Color(0.6, 0.6, 0.6);
+			image[Y * screenWidth + X] = Color(0.255, 0.898, 0.969);
 
 }
 
@@ -625,11 +995,8 @@ void onDisplay() {
 	// Majd rajzolunk egy kek haromszoget
 
 	// ...
-//	Circle c = Circle(Vector(500, 500, 0), 50);
-//	c.drawOut();
 
-	animate.animation();
-
+	parabola.printParabola();
 	CatmullRom c = CatmullRom(pointsWithTime);
 	c.drawCatmullR();
 
@@ -637,15 +1004,7 @@ void onDisplay() {
 		Circle c = Circle(pointsWithTime[i].controllPoint, 5);
 		c.drawOut();
 	}
-//	glPushMatrix();
-////glTranslatef(250, 0,0);
-//	glTranslatef(500, 500, 0);
-//
-//	glRotatef(-45, 0, 0, 1);
-//
-	parabola.printParabola();
-//	glPopMatrix();
-
+	animate.animation();
 	glutSwapBuffers();     				// Buffercsere: rajzolas vege
 
 }
