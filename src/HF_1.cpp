@@ -107,12 +107,14 @@ public:
 		if (numOfElements >= size) {
 			exit(-1);
 		}
-		if (numOfElements == 0) {
+		if (numOfElements ==0) {
 			array[numOfElements++] = t;
 			array[numOfElements] = t;
 		} else {
-			array[numOfElements++] = t;
-			array[numOfElements] = array[0];
+			array[numOfElements] = t;
+			array[numOfElements + 1] = array[0];
+			array[numOfElements + 2] = array[1];
+			numOfElements++;
 
 		}
 
@@ -270,16 +272,7 @@ struct myMatrix {
 
 	}
 
-	void printM() {
-		for (int i = 0; i < 4; i++) {
-			{
-				cout << M[i][0] << " " << M[i][1] << " " << M[i][2] << " "
-						<< M[i][3] << endl;
-			}
 
-		}
-
-	}
 
 	myMatrix Transp() {
 
@@ -436,9 +429,9 @@ struct Vector {
 		z *= f;
 	}
 
-	void printOut() {
-		cout << "x:" << x << " y:" << y << " z:" << z << " w:" << w << endl;
-	}
+//	void printOut() {
+//		cout << "x:" << x << " y:" << y << " z:" << z << " w:" << w << endl;
+//	}
 
 	Vector operator*(const myMatrix & A) {
 		float V_a[4] = { 0, 0, 0, 0 };
@@ -474,14 +467,6 @@ struct ControllPointWithTime {
 	Vector controllPoint;
 	long time;
 
-//	ControllPointWithTime& operator=(const ControllPointWithTime& c) {
-//		if (this != &c) {
-//			controllPoint.x = c.controllPoint.x;
-//			controllPoint.y = c.controllPoint.y;
-//			time = c.time;
-//		}
-//		return *this;
-//	}
 
 };
 
@@ -492,7 +477,12 @@ const float PI_MAT = 3.14159;
 Color image[screenWidth * screenHeight];	// egy alkalmazÃ¡s ablaknyi kÃ©p
 Color image2[screenWidth * screenHeight];
 int piecesOfControllPoints = 0;
-Array<ControllPointWithTime, 10> pointsWithTime;
+bool space = false;
+Vector parabolaPointVector[4000];
+Array<ControllPointWithTime,20> pointsWithTime;
+
+
+
 class Circle {
 	Vector center;
 	float R;
@@ -507,16 +497,18 @@ public:
 		center = v;
 		R = r;
 	}
-
+// Feher korvonal belul piros kor
 	void drawOut() {
+		Vector points[360];
 		glColor3f(1, 0, 0);
 
 		glBegin(GL_TRIANGLE_FAN);
-
-		for (double fi = 0; fi <= 360; ++fi) {
-			double fi_rad = (PI_MAT / 180) * fi;
-			double x2 = cos(fi_rad) * R;
-			double y2 = sin(fi_rad) * R;
+		for (int fi = 0; fi < 360; ++fi) {
+			float fi_rad = (PI_MAT / 180) * fi;
+			float x2 = cos(fi_rad) * R;
+			float y2 = sin(fi_rad) * R;
+			Vector v = Vector(center.x + x2, center.y + y2);
+			points[fi] = v;
 			glVertex2f(center.x + x2, center.y + y2);
 			glColor3f(1, 0, 0);
 		}
@@ -525,12 +517,9 @@ public:
 		glColor3f(1, 1, 1);
 		glBegin(GL_LINE_STRIP);
 
-		for (double fi = 0; fi <= 360; ++fi) {
-			double fi_rad = (PI_MAT / 180) * fi;
-			double x2 = cos(fi_rad) * R;
-			double y2 = sin(fi_rad) * R;
+		for (int fi = 0; fi < 360; ++fi) {
 
-			glVertex2f(center.x + x2, center.y + y2);
+			glVertex2f(points[fi].x, points[fi].y);
 		}
 		glEnd();
 
@@ -538,7 +527,7 @@ public:
 
 };
 
-bool space = false;
+
 
 class Animation {
 
@@ -558,7 +547,7 @@ public:
 		myDir = Vector(2, 3);
 		myDir.Normalize();
 		accTime = 0;
-		velo = 5;
+		velo = sqrt(13);
 
 	}
 
@@ -602,6 +591,7 @@ public:
 			viewPortPosition.x = myDir.x * velo + viewPortPosition.x;
 			viewPortPosition.y = myDir.y * velo + viewPortPosition.y;
 			glLoadIdentity();
+			glViewport(0, 0, screenWidth, screenHeight);
 			gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
 					viewPortPosition.y, viewPortPosition.y + 500);
 
@@ -612,13 +602,13 @@ public:
 		animationTime = glutGet(GLUT_ELAPSED_TIME);
 		accTime = animationTime;
 		glLoadIdentity();
+		glViewport(0, 0, screenWidth, screenHeight);
 		gluOrtho2D(viewPortPosition.x, viewPortPosition.x + 500,
 				viewPortPosition.y, viewPortPosition.y + 500);
 	}
 
 };
 
-Vector para[4000];
 struct IntersectionPoint {
 	Vector intersection;
 	Vector parabolaNormalVector;
@@ -633,6 +623,7 @@ public:
 };
 
 IntersectionPoint intersection;
+
 class Parabola {
 	Vector normalVector;
 public:
@@ -712,18 +703,18 @@ public:
 
 	myMatrix calculateTranformationMatrix() {
 		float rotation = getRotationInRad();
-
 		Vector push = getTranslateVector();
+
 		myMatrix translateMatrix = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
 				push.x, push.y, 0, 1);
 		myMatrix rotationMatrix = myMatrix(cos(rotation), sin(rotation), 0, 0,
 				-sin(rotation), cos(rotation), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 		myMatrix transformationMatrix = rotationMatrix * translateMatrix;
+
 		return transformationMatrix;
 	}
 
 	Vector calculateTransformedPoint(float x) {
-//		calculateNormalVector();
 
 		float y;
 		float p = distancePointFromLine();
@@ -741,14 +732,6 @@ public:
 		if (pointsWithTime.SizeOf() >= 3) {
 			calculateNormalVector();
 
-//			glColor3f(0.255, 0.898, 0.969);
-//						glBegin(GL_TRIANGLE_FAN);
-//			for(int x=0; x<1000; x++){
-//				for(int y=0; y<1000; y++){
-//					glVertex2f(x, y);
-//				}
-//			}
-//			glEnd();
 			glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image2);
 
 			glColor3f(1, 1, 0);
@@ -757,62 +740,13 @@ public:
 
 				Vector point = calculateTransformedPoint(x);
 
-////				cout<<normalVector.x<<" "<<normalVector.y<<endl;
-//				float y1 = normalVector.x*(-1)*(x-pointsWithTime[1].controllPoint.x);
-//				float y2 = y1 / normalVector.y;
-//				float Y = y2 + pointsWithTime[1].controllPoint.y;
-				para[i] = point;
-//				glVertex2f(point.x, point.y);
+				parabolaPointVector[i] = point;
+				glVertex2f(point.x, point.y);
 				i++;
 
 			}
 
 			glEnd();
-			glBegin(GL_TRIANGLE_FAN);
-			for (int k = 0; k < i; k++) {
-				glVertex2f(para[k].x, para[k].y);
-			}
-			glEnd();
-
-		}
-
-		if (pointsWithTime.SizeOf() >= 3) {
-			calculateNormalVector();
-			float rotation = getRotationInRad();
-			Vector push = getTranslateVector();
-//			glPushMatrix();
-//			glTranslatef(push.x, push.y, 0);
-//			glRotatef(180/PI_MAT*rotation, 0, 0, 1);
-
-			glColor3f(0, 1, 0);
-			glBegin(GL_LINE_STRIP);
-
-			float m = 1 / (distancePointFromLine())
-					* intersection.intersection.x;
-			float y0 = 1 / (2 * distancePointFromLine())
-					* powf(intersection.intersection.x, 2);
-
-			for (float x = -1000; x <= 1000; x++) {
-
-//				float y1 = normalVector.x * (-1)
-//						* (x - pointsWithTime[1].controllPoint.x);
-//				float y2 = y1 / normalVector.y;
-//				float Y = y2 + pointsWithTime[1].controllPoint.y;
-
-//				Y = -normalVector.x/normalVector.y;
-
-				float p = distancePointFromLine();
-				float y = 1 / (p) * x;
-				float Y = m * (x) - y0;
-				Vector point = Vector(x, Y);
-				myMatrix transformationMatrix = calculateTranformationMatrix();
-				point = point * transformationMatrix;
-//				glVertex2f(point.x, point.y);
-
-			}
-
-			glEnd();
-//			glPopMatrix();
 
 		}
 
@@ -837,21 +771,11 @@ public:
 
 			float m = 1 / (parabola.distancePointFromLine())
 					* intersectionPoin.x;
-//			float y0 = 1 / (2 * parabola.distancePointFromLine())
-//					* powf(intersectionPoin.x, 2);
+
 			float y0 = intersectionPoin.y;
 
 			for (float x = -1000; x <= 1000; x++) {
 
-				//				float y1 = normalVector.x * (-1)
-				//						* (x - pointsWithTime[1].controllPoint.x);
-				//				float y2 = y1 / normalVector.y;
-				//				float Y = y2 + pointsWithTime[1].controllPoint.y;
-
-				//				Y = -normalVector.x/normalVector.y;
-
-//				float p = distancePointFromLine();
-//				float y = 1 / (p) * x;
 				float Y = m * (x) - y0;
 				Vector point = Vector(x, Y);
 				myMatrix transformationMatrix =
@@ -862,7 +786,6 @@ public:
 			}
 
 			glEnd();
-			//			glPopMatrix();
 
 		}
 
@@ -876,9 +799,12 @@ public:
 
 			glColor3f(0, 0.7, 0);
 			glBegin(GL_LINE_STRIP);
-
+// egyenes iranyvektoros egyenlete alapjan
 			Vector intersectionPoin = intersection.intersection;
 			Vector dir = intersection.tangentOfSpline;
+			if (dir.x == 0 && dir.y == 0) {
+				dir = pointsWithTime[2].controllPoint - intersectionPoin;
+			}
 
 			for (float x = -1000; x <= 1000; x++) {
 
@@ -899,29 +825,35 @@ public:
 	}
 };
 
-bool ggg = true;
-int jjj = 0;
 class CatmullRom {
 public:
-	Array<ControllPointWithTime, 10> arrayOfPoints;
+	Array<ControllPointWithTime, 20> arrayOfPoints;
 
-	CatmullRom(Array<ControllPointWithTime, 10> t) {
+	CatmullRom(Array<ControllPointWithTime, 20> t) {
 		arrayOfPoints = t;
 	}
 private:
-	Vector velCatR(int n) {
-		if (n == 0 || n == piecesOfControllPoints - 1)
+	Vector velCatR(int n_minus, int n, int n_plus) {
+		if (n == 0)
 			return Vector();
 
-		long t = arrayOfPoints[n].time;
-		long t_min = arrayOfPoints[n - 1].time;
-		long t_plus = arrayOfPoints[n + 1].time;
+		if (piecesOfControllPoints > 2) {
+			if (n == piecesOfControllPoints)
+				return Vector();
+		} else {
+			if (n == piecesOfControllPoints - 1)
+				return Vector();
+		}
 
-		Vector tmp = arrayOfPoints[n + 1].controllPoint
+		long t = arrayOfPoints[n].time;
+		long t_min = arrayOfPoints[n_minus].time;
+		long t_plus = arrayOfPoints[n_plus].time;
+
+		Vector tmp = arrayOfPoints[n_plus].controllPoint
 				- arrayOfPoints[n].controllPoint;
 		Vector first = tmp / ((t_plus - t));
 		Vector tmp2 = (arrayOfPoints[n].controllPoint
-				- arrayOfPoints[n - 1].controllPoint);
+				- arrayOfPoints[n_minus].controllPoint);
 		Vector second = tmp2 / ((t - t_min));
 
 		Vector acct;
@@ -930,24 +862,30 @@ private:
 		return acct;
 	}
 
-	Vector a_2(int n) {
+	Vector a_2(int n_minus, int n, int n_plus) {
 
-		Vector v = Vector();
 		Vector v1;
 		Vector v2;
 
 		if (n == 0)
-			v1 = v;
+			v1 = Vector();
 		else
-			v1 = velCatR(n);
-		if (n == piecesOfControllPoints - 1)
-			v2 = v;
-		else
-			v2 = velCatR(n + 1);
+			v1 = velCatR(n_minus, n, n_plus);
+		if (piecesOfControllPoints > 2) {
+			if (n == piecesOfControllPoints)
+				v2 = Vector();
+			else
+				v2 = velCatR(n, n_plus, n_plus + 1);
+		} else {
+			if (n == piecesOfControllPoints - 1)
+				v2 = Vector();
+			else
+				v2 = velCatR(n, n_plus, n_plus + 1);
+		}
 
-		float timeDif = (arrayOfPoints[n + 1].time - arrayOfPoints[n].time);
+		float timeDif = (arrayOfPoints[n_plus].time - arrayOfPoints[n].time);
 
-		Vector first = (arrayOfPoints[n + 1].controllPoint
+		Vector first = (arrayOfPoints[n_plus].controllPoint
 				- arrayOfPoints[n].controllPoint) * 3;
 		float timeDifSq = powf(timeDif, (float) 2);
 
@@ -956,24 +894,29 @@ private:
 		return acct;
 	}
 
-	Vector a_3(int n) {
-		Vector v = Vector();
+	Vector a_3(int n_minus, int n, int n_plus) {
 		Vector v1;
 		Vector v2;
 
 		if (n == 0)
-			v1 = v;
+			v1 = Vector();
 		else
-			v1 = velCatR(n);
-		if (n == piecesOfControllPoints - 1)
-			v2 = v;
-		else
-			v2 = velCatR(n + 1);
-
-		float timeDif = (arrayOfPoints[n + 1].time - arrayOfPoints[n].time);
+			v1 = velCatR(n_minus, n, n_plus);
+		if (piecesOfControllPoints > 2) {
+			if (n == piecesOfControllPoints)
+				v2 = Vector();
+			else
+				v2 = velCatR(n, n_plus, n_plus + 1);
+		} else {
+			if (n == piecesOfControllPoints - 1)
+				v2 = Vector();
+			else
+				v2 = velCatR(n, n_plus, n_plus + 1);
+		}
+		float timeDif = (arrayOfPoints[n_plus].time - arrayOfPoints[n].time);
 
 		Vector first = (arrayOfPoints[n].controllPoint
-				- arrayOfPoints[n + 1].controllPoint) * 2;
+				- arrayOfPoints[n_plus].controllPoint) * 2;
 		float timeDiffTr = powf(timeDif, (float) 3);
 		float timeDiffSq = powf(timeDif, (float) 2);
 
@@ -984,19 +927,18 @@ private:
 
 	bool getIntersectionWithParabola(const Vector& splinePoint,
 			Vector velocity) {
-		bool notFound = true;
 
 		for (int i = 0; i <= 4000; i++) {
 
-			Vector parabolaPoint = para[i];
+			Vector parabolaPoint = parabolaPointVector[i];
 			if (fabs(parabolaPoint.y - splinePoint.y) <= 0.5
-					&& fabs(parabolaPoint.x - splinePoint.x) <= 0.5 && notFound) {
+					&& fabs(parabolaPoint.x - splinePoint.x) <= 0.5) {
 
 				if (!space) {
 					intersection.intersection = splinePoint;
 					intersection.tangentOfSpline = velocity;
+					intersection.tangentOfSpline.Normalize();
 				}
-				notFound = false;
 
 				return true;
 			}
@@ -1017,46 +959,52 @@ public:
 		Vector v_3;
 		Vector v_2;
 		Vector v_1;
-		bool b = false;
+		bool isIntersected = false;
 
-		for (int j = 0; j < piecesOfControllPoints - 1; ++j) {
-//
-//			for (t = arrayOfPoints[j].time; t <= arrayOfPoints[j + 1].time; t +=
-//					1) {
-			int step = 5;
-			if (j == 1)
-				step = 1;
-			for (t = 0;
-					t <= fabs(arrayOfPoints[j + 1].time - arrayOfPoints[j].time);
-					t += step) {
+		for (int j = 0; j < piecesOfControllPoints; ++j) {
 
-//				float f3 = (powf(((t - arrayOfPoints[j].time)), (float) 3));
-//
-//				float f2 = (powf((t - arrayOfPoints[j].time), (float) 2));
-//
-//				v0 = a_3(j) * (f3);
-//				v1 = a_2(j) * (f2);
-//				v2 = velCatR(j) * (t - arrayOfPoints[j].time);
-//
-//				vect = (v_3 + v_2 + v_1 + arrayOfPoints[j].controllPoint);
-//				glVertex2f(vect.x, vect.y);
 
+			float deltaT = fabs(arrayOfPoints[j+1].time - arrayOfPoints[j].time);
+
+			if (piecesOfControllPoints > 1) {
+				float deltaT2 =
+						fabs(
+								arrayOfPoints[piecesOfControllPoints - 2].time
+										- arrayOfPoints[piecesOfControllPoints
+												- 1].time);
+				arrayOfPoints[piecesOfControllPoints].time =
+						arrayOfPoints[piecesOfControllPoints - 1].time
+								+ deltaT2;
+				arrayOfPoints[piecesOfControllPoints + 1].time =
+						arrayOfPoints[piecesOfControllPoints - 1].time
+								+ 2 * deltaT2;
+			}
+
+			float step = 5;
+//			if (j == 1)
+//				step = 0.1;
+			for (t = 0; t <= deltaT; t += step) {
+//				if(t>deltaT*2/5)
+//					step=0.1;
+//				else if(t>deltaT*4/5)
+//					step=5;
 				float f3 = (powf(((t)), (float) 3));
 
 				float f2 = (powf((t), (float) 2));
 
-				v_3 = a_3(j) * (f3);
-				v_2 = a_2(j) * (f2);
-				v_1 = velCatR(j) * (t);
+				v_3 = a_3(j - 1, j, j + 1) * (f3);
+				v_2 = a_2(j - 1, j, j + 1) * (f2);
+				v_1 = velCatR(j - 1, j, j + 1) * (t);
 
 				vect = (v_3 + v_2 + v_1 + arrayOfPoints[j].controllPoint);
 
-				if (arrayOfPoints.SizeOf() >= 3 && !b && j == 1) {
-					Vector p_3 = a_3(j) * f2 * 3;
-					Vector p_2 = a_2(j) * t * 2;
+				if (arrayOfPoints.SizeOf() >= 3 && !isIntersected && j == 1) {
+//					Hermitte szerint derivalt kiszamitasa
+					Vector p_3 = a_3(j - 1, j, j + 1) * f2 * 3;
+					Vector p_2 = a_2(j - 1, j, j + 1) * t * 2;
 
-					Vector velocity = p_3 + p_2 + velCatR(j);
-					b = getIntersectionWithParabola(vect, velocity);
+					Vector velocity = p_3 + p_2 + velCatR(j - 1, j, j + 1);
+					isIntersected = getIntersectionWithParabola(vect, velocity);
 
 				}
 
@@ -1065,24 +1013,22 @@ public:
 			}
 
 		}
-		if (piecesOfControllPoints > 1) {
 
-			glVertex2f(arrayOfPoints[0].controllPoint.x,
-					arrayOfPoints[0].controllPoint.y);
-		}
 		glEnd();
 
 	}
 
 };
+
 Animation animate = Animation();
+
 void addControlPointToArray(int x, int y, long time) {
 	ControllPointWithTime controllPoint;
 	Vector center;
 	if (!space) {
 		center.x = (float) x * ((float) 1000 / screenWidth);
 		center.y = 1000 - y * ((float) 1000 / screenHeight);
-	}else {
+	} else {
 		center.x = ((float) x * ((float) 500 / screenWidth))
 				+ animate.viewPortPosition.x;
 		center.y = (500 - y * ((float) 500 / screenHeight))
@@ -1138,9 +1084,6 @@ void onDisplay() {
 	tangentialToParabola.drawLine();
 	TangentialToSpline tangentialToSpline;
 	tangentialToSpline.drawLine();
-	Circle cc = Circle(intersection.intersection, 10);
-//	cc.drawOut();
-	animate.animation();
 	glutSwapBuffers();     				// Buffercsere: rajzolas vege
 
 }
@@ -1150,8 +1093,8 @@ void onKeyboard(unsigned char key, int x, int y) {
 	if (key == ' ' && !space) {
 		animate.resizeViewPort();
 		space = true;
+		glutPostRedisplay();
 	}
-	glutPostRedisplay(); 		// d beture rajzold ujra a kepet
 
 }
 
@@ -1163,11 +1106,12 @@ void onKeyboardUp(unsigned char key, int x, int y) {
 // Eger esemenyeket lekezelo fuggveny
 void onMouse(int button, int state, int x, int y) {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN
-			&& pointsWithTime.SizeOf() < 9) { // A GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON illetve GLUT_DOWN / GLUT_UP
+			&& pointsWithTime.SizeOf() < 18) { // A GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON illetve GLUT_DOWN / GLUT_UP
 		long time = glutGet(GLUT_ELAPSED_TIME);
 		addControlPointToArray(x, y, time);
+		glutPostRedisplay();
 	}
-	glutPostRedisplay(); 					// Ilyenkor rajzold ujra a kepet
+	// Ilyenkor rajzold ujra a kepet
 }
 
 // Eger mozgast lekezelo fuggveny
@@ -1177,9 +1121,11 @@ void onMouseMotion(int x, int y) {
 
 // `Idle' esemenykezelo, jelzi, hogy az ido telik, az Idle esemenyek frekvenciajara csak a 0 a garantalt minimalis ertek
 void onIdle() {
-	long time = glutGet(GLUT_ELAPSED_TIME);	// program inditasa ota eltelt ido
-	if (space)
+	if (space) {
+		animate.animation();
+
 		glutPostRedisplay();
+	}
 
 }
 
@@ -1200,7 +1146,7 @@ int main(int argc, char **argv) {
 	glMatrixMode(GL_PROJECTION);// A PROJECTION transzformaciot egysegmatrixra inicializaljuk
 	glLoadIdentity();
 
-	onInitialization();				// Az altalad irt inicializalast lefuttatjuk
+	onInitialization();			// Az altalad irt inicializalast lefuttatjuk
 
 	glutDisplayFunc(onDisplay);				// Esemenykezelok regisztralasa
 	glutMouseFunc(onMouse);
